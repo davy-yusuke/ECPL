@@ -341,34 +341,27 @@ namespace ast
         void print(std::ostream &os, int indent = 0) const override;
     };
 
-    // ---------- package / module decl ----------
     struct PackageDecl : Decl
     {
-        std::string name; // package name, e.g. "foo.bar" or single identifier
+        std::string name;
         PackageDecl(const std::string &n) : name(n) {}
         void print(std::ostream &os, int indent = 0) const override;
     };
 
-    // backward-compat alias: old code that referenced ModuleDecl can keep using it
     using ModuleDecl = PackageDecl;
 
-    // ---------- import decl ----------
     struct ImportDecl : Decl
     {
-        // original dot-separated path as written in source, e.g. "foo.bar"
+
         std::string path;
 
-        // split parts of the path, e.g. ["foo","bar"]
         std::vector<std::string> path_parts;
 
-        // optional alias from "import foo.bar as baz"
         std::optional<std::string> alias;
 
         ImportDecl(const std::string &p) : path(p) {}
         ImportDecl(const std::string &p, const std::optional<std::string> &a) : path(p), alias(a) {}
 
-        // parser should populate path_parts by splitting 'path' on '.'
-        // e.g. for "std.io" => path_parts = {"std", "io"}
         void print(std::ostream &os, int indent = 0) const override;
     };
 
@@ -415,7 +408,6 @@ namespace ast
         void print(std::ostream &os, int indent = 0) const override;
     };
 
-    // Print the concrete kind of an Expr pointer (and a few small details).
     inline void print_expr_kind(const Expr *e, std::ostream &os = std::cout)
     {
         if (!e)
@@ -424,7 +416,6 @@ namespace ast
             return;
         }
 
-        // check each concrete Expr type
         if (auto p = dynamic_cast<const Ident *>(e))
         {
             os << "Expr: Ident (name = \"" << p->name << "\")\n";
@@ -482,14 +473,12 @@ namespace ast
             return;
         }
 
-        // fallback: unknown/other Expr-derived type
         os << "Expr: <unknown concrete type>\n";
     }
 
-    // convenience overload for unique_ptr<T>
     inline void print_expr_kind(const std::unique_ptr<Expr> &ue, std::ostream &os = std::cout)
     {
         print_expr_kind(ue.get(), os);
     }
 
-} // namespace ast
+}

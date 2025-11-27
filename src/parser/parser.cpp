@@ -335,7 +335,7 @@ namespace path
             }
             return std::make_unique<IfStmt>(std::move(cond), std::move(then_blk), std::move(else_blk));
         }
-        // --- FOR: extend C-style init to accept "ident : type = expr" as well as "ident := expr"
+
         if (check(TokenType::KW_FOR))
         {
             advance();
@@ -347,17 +347,17 @@ namespace path
                 std::unique_ptr<Stmt> initStmt = nullptr;
                 if (!check(TokenType::SEMICOLON))
                 {
-                    // annotated var in for-init: ident : type = expr
+
                     if (check(TokenType::IDENT) && lexer.peek(1).type == TokenType::COLON)
                     {
                         Token id = cur;
-                        advance(); // ident
-                        advance(); // ':'
+                        advance();
+                        advance();
                         std::unique_ptr<ast::Type> annotated_type = parse_type();
 
                         if (check(TokenType::ASSIGN) && (cur.lexeme == ":=" || cur.lexeme == "="))
                         {
-                            advance(); // consume assign
+                            advance();
                             auto rhs = parse_expression();
                             initStmt = std::make_unique<VarDecl>(id.lexeme, std::move(annotated_type), std::move(rhs));
                         }
@@ -367,18 +367,18 @@ namespace path
                             initStmt = std::make_unique<VarDecl>(id.lexeme, std::move(annotated_type), std::make_unique<Literal>("", TokenType::ILLEGAL));
                         }
                     }
-                    // short var decl ident := expr
+
                     else if (check(TokenType::IDENT) && lexer.peek(1).type == TokenType::ASSIGN && lexer.peek(1).lexeme == ":=")
                     {
                         Token id = cur;
-                        advance(); // ident
-                        advance(); // ':='
+                        advance();
+                        advance();
                         auto rhs = parse_expression();
                         initStmt = std::make_unique<VarDecl>(id.lexeme, std::move(rhs));
                     }
                     else
                     {
-                        // general expression as for-init
+
                         auto e = parse_expression();
                         initStmt = std::make_unique<ExprStmt>(std::move(e));
                     }
