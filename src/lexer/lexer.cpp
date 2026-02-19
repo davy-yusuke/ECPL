@@ -24,9 +24,7 @@ namespace lex
         {"true", TokenType::KW_TRUE},
         {"false", TokenType::KW_FALSE},
         {"byte", TokenType::KW_BYTE},
-        {"struct", TokenType::KW_STRUCT},
         {"package", TokenType::KW_PACKAGE},
-        {"import", TokenType::KW_IMPORT},
         {"...", TokenType::ELLIPSIS},
     };
 

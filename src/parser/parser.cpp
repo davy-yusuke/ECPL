@@ -432,74 +432,7 @@ namespace path
             {
                 advance();
 
-                auto parse_type_local = [&]() -> std::unique_ptr<ast::Type>
-                {
-                    std::string ptr_prefix;
-                    while (check(TokenType::DEREF) || check(TokenType::ADDRESS_OF))
-                    {
-                        if (check(TokenType::DEREF))
-                        {
-                            ptr_prefix.push_back('*');
-                            advance();
-                        }
-                        else
-                        {
-                            ptr_prefix.push_back('&');
-                            advance();
-                        }
-                    }
-
-                    if (check(TokenType::LBRACK))
-                    {
-                        advance();
-                        expect(TokenType::RBRACK, "expected ']' in array type");
-
-                        std::unique_ptr<ast::Type> base;
-                        if (check(TokenType::KW_BYTE) || (check(TokenType::IDENT) && cur.lexeme == "byte"))
-                        {
-                            advance();
-                            base = std::make_unique<ast::NamedType>("byte");
-                        }
-                        else
-                        {
-                            Token elemTk = expect(TokenType::IDENT, "expected element type after '[]'");
-                            base = std::make_unique<ast::NamedType>(elemTk.lexeme);
-                        }
-
-                        std::unique_ptr<ast::Type> arrType = std::make_unique<ast::ArrayType>(
-                            std::move(base),
-                            true);
-
-                        for (char c : ptr_prefix)
-                        {
-                            arrType = std::make_unique<ast::PointerType>(std::move(arrType));
-                        }
-                        return arrType;
-                    }
-                    else
-                    {
-                        std::unique_ptr<ast::Type> base;
-                        if (check(TokenType::KW_BYTE) || (check(TokenType::IDENT) && cur.lexeme == "byte"))
-                        {
-                            advance();
-                            base = std::make_unique<ast::NamedType>("byte");
-                        }
-                        else
-                        {
-                            Token t = expect(TokenType::IDENT, "expected type name");
-                            base = std::make_unique<ast::NamedType>(t.lexeme);
-                        }
-
-                        for (char c : ptr_prefix)
-                        {
-                            base = std::make_unique<ast::PointerType>(std::move(base));
-                        }
-                        return base;
-                    }
-                };
-
-                std::unique_ptr<ast::Type> annotated_type = nullptr;
-                annotated_type = parse_type_local();
+                std::unique_ptr<ast::Type> annotated_type = parse_type();
 
                 if (check(TokenType::ASSIGN) && (cur.lexeme == ":=" || cur.lexeme == "="))
                 {
@@ -999,52 +932,6 @@ namespace path
         auto sdecl = std::make_unique<ast::StructDecl>(name);
         sdecl->is_pub = is_pub;
 
-        auto parse_type_local = [&]() -> std::unique_ptr<ast::Type>
-        {
-            std::string ptr_prefix;
-            while (check(TokenType::DEREF) || check(TokenType::ADDRESS_OF))
-            {
-                if (check(TokenType::DEREF))
-                {
-                    ptr_prefix.push_back('*');
-                    advance();
-                }
-                else
-                {
-                    ptr_prefix.push_back('&');
-                    advance();
-                }
-            }
-
-            if (check(TokenType::LBRACK))
-            {
-
-                advance();
-                expect(TokenType::RBRACK, "expected ']' in array type");
-                Token elemTk = expect(TokenType::IDENT, "expected element type after '[]'");
-                std::unique_ptr<ast::Type> base = std::make_unique<ast::NamedType>(elemTk.lexeme);
-                std::unique_ptr<ast::Type> arrType = std::make_unique<ast::ArrayType>(
-                    std::move(base),
-                    true);
-
-                for (char c : ptr_prefix)
-                {
-                    arrType = std::make_unique<ast::PointerType>(std::move(arrType));
-                }
-                return arrType;
-            }
-            else
-            {
-                Token t = expect(TokenType::IDENT, "expected type name");
-                std::unique_ptr<ast::Type> base = std::make_unique<ast::NamedType>(t.lexeme);
-                for (char c : ptr_prefix)
-                {
-                    base = std::make_unique<ast::PointerType>(std::move(base));
-                }
-                return base;
-            }
-        };
-
         skip_newlines();
         while (!check(TokenType::RBRACE) && !is_at_end())
         {
@@ -1065,7 +952,7 @@ namespace path
                     Token fn = expect(TokenType::IDENT, "expected field name in inline struct");
                     std::string fnname = fn.lexeme;
 
-                    std::unique_ptr<ast::Type> ft = parse_type_local();
+                    std::unique_ptr<ast::Type> ft = parse_type();
 
                     auto inlineField = std::make_shared<ast::StructField>();
                     inlineField->name = fnname;
@@ -1080,7 +967,7 @@ namespace path
             }
             else
             {
-                field->type = parse_type_local();
+                field->type = parse_type();
             }
 
             sdecl->fields.push_back(std::move(field));
@@ -1093,7 +980,7 @@ namespace path
         return sdecl;
     }
 
-    std::unique_ptr<ast::Type> Parser::parse_type()
+        std::unique_ptr<ast::Type> Parser::parse_type()
     {
 
         std::string ptr_prefix;
