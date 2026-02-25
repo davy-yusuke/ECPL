@@ -2,6 +2,7 @@
 #include "../../src/parser/parser.h"
 #include "../../src/ast/printer.h"
 #include "../../src/codegen/codegen.h"
+#include "../../src/module/resolver.h"
 
 #include <iostream>
 #include <fstream>
@@ -23,6 +24,7 @@ static void print_help(const char *exec)
                          "Modes:\n"
                          "  ll                Emit LLVM IR only\n"
                          "  debug             Show tokens, AST, and LLVM IR\n"
+                         "  build             Build project from ecpl.json\n"
                          "  help              Show this help\n"
                          "\n"
                          "Options:\n"
@@ -34,9 +36,9 @@ static void print_help(const char *exec)
                          "  "
               << exec << " src/ -o build\n"
                          "  "
-              << exec << " ll main.ec\n"
+              << exec << " build              # Uses ecpl.json\n"
                          "  "
-              << exec << " debug src/\n";
+              << exec << " ll main.ec\n";
 }
 
 static std::vector<fs::path> collect_sources(const std::vector<std::string> &inputs)
@@ -66,9 +68,8 @@ static std::vector<fs::path> collect_sources(const std::vector<std::string> &inp
     return result;
 }
 
-static std::unique_ptr<ast::Program> compile_frontend(
+static std::unique_ptr<ast::Program> compile_frontend_simple(
     const std::vector<fs::path> &sources,
-    bool debug_lex = false,
     bool debug_ast = false)
 {
     std::unique_ptr<ast::Program> merged = std::make_unique<ast::Program>();
@@ -128,6 +129,28 @@ static std::unique_ptr<ast::Program> compile_frontend(
     return merged;
 }
 
+static fs::path find_ecpl_json()
+{
+    fs::path cwd = fs::current_path();
+    fs::path search = cwd;
+    
+    for (int i = 0; i < 10; i++)
+    {
+        fs::path config = search / "ecpl.json";
+        if (fs::exists(config))
+        {
+            return config;
+        }
+        
+        fs::path parent = search.parent_path();
+        if (parent == search)
+            break;
+        search = parent;
+    }
+    
+    return {};
+}
+
 int main(int argc, char *argv[])
 {
     using namespace lex;
@@ -142,6 +165,7 @@ int main(int argc, char *argv[])
     std::string mode = argv[1];
     bool emit_ir_only = false;
     bool debug = false;
+    bool use_project_mode = false;
     fs::path output_dir = ".";
 
     std::vector<std::string> inputs;
@@ -172,16 +196,14 @@ int main(int argc, char *argv[])
         {
             debug = true;
         }
+        else if (arg == "build")
+        {
+            use_project_mode = true;
+        }
         else
         {
             inputs.push_back(arg);
         }
-    }
-
-    if (inputs.empty())
-    {
-        std::cerr << "No source files specified\n";
-        return 1;
     }
 
     if (!fs::exists(output_dir))
@@ -189,14 +211,95 @@ int main(int argc, char *argv[])
         fs::create_directories(output_dir);
     }
 
-    auto src_files = collect_sources(inputs);
-    if (src_files.empty())
+    std::unique_ptr<ast::Program> program;
+    std::vector<fs::path> src_files;
+
+    if (use_project_mode)
     {
-        std::cerr << "No .ec source files found.\n";
-        return 1;
+        fs::path config_path = find_ecpl_json();
+        if (config_path.empty())
+        {
+            std::cerr << "Error: ecpl.json not found\n";
+            return 1;
+        }
+
+        std::cout << "Using config: " << config_path << "\n";
+
+        auto config = module::ProjectConfig::load(config_path);
+        if (!config)
+        {
+            std::cerr << "Error: Failed to load ecpl.json\n";
+            return 1;
+        }
+
+        std::cout << "Project: " << config->name << " v" << config->version << "\n";
+
+        fs::path project_root = config_path.parent_path();
+        
+        module::ModuleResolver resolver;
+        resolver.set_project_root(project_root);
+        
+        for (const auto &src_dir : config->src_dirs)
+        {
+            resolver.add_source_dir(src_dir);
+        }
+
+        std::vector<fs::path> sources;
+        for (const auto &src_dir : config->src_dirs)
+        {
+            fs::path full_dir = project_root / src_dir;
+            if (fs::exists(full_dir))
+            {
+                for (auto &it : fs::recursive_directory_iterator(full_dir))
+                {
+                    if (it.is_regular_file() && it.path().extension() == ".ec")
+                        sources.push_back(it.path());
+                }
+            }
+        }
+
+        if (sources.empty())
+        {
+            std::cerr << "No source files found\n";
+            return 1;
+        }
+
+        std::cout << "Found " << sources.size() << " source file(s)\n";
+
+        if (!resolver.resolve_all(sources))
+        {
+            std::cerr << "Module resolution failed\n";
+            return 1;
+        }
+
+        program = resolver.link_program();
+        
+        output_dir = project_root / config->output_dir;
+        if (!fs::exists(output_dir))
+        {
+            fs::create_directories(output_dir);
+        }
+
+        src_files = sources;
+    }
+    else
+    {
+        if (inputs.empty())
+        {
+            std::cerr << "No source files specified\n";
+            return 1;
+        }
+
+        src_files = collect_sources(inputs);
+        if (src_files.empty())
+        {
+            std::cerr << "No .ec source files found.\n";
+            return 1;
+        }
+
+        program = compile_frontend_simple(src_files, debug);
     }
 
-    auto program = compile_frontend(src_files, debug, debug);
     if (!program)
         return 1;
 

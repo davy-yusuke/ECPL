@@ -2,7 +2,7 @@
 
 This directory contains example programs written in ECPL.
 
-## Files
+## Single-File Examples
 
 | File | Description |
 |------|-------------|
@@ -10,12 +10,77 @@ This directory contains example programs written in ECPL.
 | `02_for_c_style.ec` | C-style for loop example |
 | `03_fizzbuzz.ec` | Classic FizzBuzz problem |
 
-## Running Tests
+## Project Examples
 
-Execute the test script to compile and run all examples:
+| Directory | Description |
+|------|-------------|
+| `04_module_project/` | Single module import example |
+| `05_multi_module/` | Multi-module project with nested packages |
+
+### Project Structure
+
+Each project has an `ecpl.json` configuration file:
+
+```
+project/
+├── ecpl.json          # Project configuration
+└── src/
+    ├── main.ec        # Entry point
+    └── math.ec        # Module with pub functions
+```
+
+### ecpl.json Format
+
+```json
+{
+    "name": "myproject",
+    "version": "0.1.0",
+    "entry": "src/main.ec",
+    "src": ["src/"],
+    "output": "build/"
+}
+```
+
+### Module Syntax
+
+```ecpl
+// Declaration (exported with pub)
+module math
+
+pub fn add(a i32, b i32) i32 {
+    return a + b
+}
+
+fn internal_helper() {  // Not exported (private)
+    // ...
+}
+
+// Import and usage
+import "math"
+
+fn main() {
+    result := add(1, 2)  // Calls math.add
+    println(result)
+}
+```
+
+### Visibility Rules
+
+- Functions with `pub` keyword are exported and accessible from other modules
+- Functions without `pub` are private (static linkage in LLVM IR)
+- Use `pub fn` for public API functions
+
+## Running Tests
 
 ```bash
 ./run_tests.sh
+```
+
+For project-based examples:
+
+```bash
+cd examples/04_module_project
+../../build/ecc build
 ```
 
 Requirements:
@@ -23,9 +88,7 @@ Requirements:
 - LLVM tools (`llc`)
 - Clang
 
-## Writing New Examples
+## Adding New Examples
 
-When adding new examples, make sure they:
-1. Have a `fn main()` entry point
-2. Can be compiled with the current compiler version
-3. Update `run_tests.sh` to include the new test
+1. Single file: Add `.ec` file and update `run_tests.sh`
+2. Project: Create directory with `ecpl.json` and `src/` folder

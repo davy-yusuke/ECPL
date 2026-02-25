@@ -126,7 +126,9 @@ void CodeGen::predeclare_functions(const std::vector<const ast::FuncDecl *> &fun
             continue;
         }
 
-        Function *fn = Function::Create(functionType, Function::ExternalLinkage, funcDecl->name, module.get());
+        bool is_main = (funcDecl->name == "main");
+        auto linkage = (funcDecl->is_pub || is_main) ? Function::ExternalLinkage : Function::InternalLinkage;
+        Function *fn = Function::Create(functionType, linkage, funcDecl->name, module.get());
 
         unsigned argIndex = 0;
         for (auto &arg : fn->args())
@@ -209,7 +211,9 @@ Function *CodeGen::codegen_function_decl(const ast::FuncDecl *funcDecl)
     Function *functionValue = module->getFunction(funcDecl->name);
     if (!functionValue)
     {
-        functionValue = Function::Create(functionType, Function::ExternalLinkage, funcDecl->name, module.get());
+        bool is_main = (funcDecl->name == "main");
+        auto linkage = (funcDecl->is_pub || is_main) ? Function::ExternalLinkage : Function::InternalLinkage;
+        functionValue = Function::Create(functionType, linkage, funcDecl->name, module.get());
         function_protos[funcDecl->name] = functionValue;
     }
     else

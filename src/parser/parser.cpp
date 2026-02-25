@@ -242,17 +242,45 @@ namespace path
     {
         expect(TokenType::KW_IMPORT, "expected 'import'");
 
-        Token first = expect(TokenType::IDENT, "expected import path");
-        std::string full = first.lexeme;
+        std::string full;
         std::vector<std::string> parts;
-        parts.push_back(first.lexeme);
 
-        while (match(TokenType::DOT))
+        if (check(TokenType::STRING))
         {
-            Token p = expect(TokenType::IDENT, "expected identifier in import path");
-            full += ".";
-            full += p.lexeme;
-            parts.push_back(p.lexeme);
+            Token strTk = cur;
+            advance();
+            std::string raw = strTk.lexeme;
+            if (raw.size() >= 2 && raw.front() == '"' && raw.back() == '"')
+            {
+                full = raw.substr(1, raw.size() - 2);
+            }
+            else
+            {
+                full = raw;
+            }
+            size_t start = 0;
+            size_t pos = full.find('/');
+            while (pos != std::string::npos)
+            {
+                parts.push_back(full.substr(start, pos - start));
+                start = pos + 1;
+                pos = full.find('/', start);
+            }
+            parts.push_back(full.substr(start));
+        }
+        else
+        {
+            Token first = expect(TokenType::IDENT, "expected import path");
+            full = first.lexeme;
+            parts.push_back(first.lexeme);
+
+            while (match(TokenType::DOT))
+            {
+                Token p = expect(TokenType::IDENT, "expected identifier in import path");
+                full += ".";
+                full += p.lexeme;
+                parts.push_back(p.lexeme);
+            }
         }
 
         std::optional<std::string> alias = std::nullopt;

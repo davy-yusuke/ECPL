@@ -24,6 +24,8 @@ add_library(ecclib
     src/parser/parser.cpp
     src/codegen/codegen.cpp
     src/ast/ast.cpp
+    src/module/json.cpp
+    src/module/resolver.cpp
 )
 
 target_link_libraries(ecclib ${LLVM_LIBS})
