@@ -97,6 +97,7 @@ namespace codegen
         locals_stack_type.emplace_back();
         locals_stack.emplace_back();
     }
+    
     void CodeGen::pop_scope()
     {
         if (!locals_stack.empty())
